@@ -11,6 +11,10 @@ export default function InumanPage() {
   // Wheel animation state (must be top-level for hooks)
   const [spinIdx, setSpinIdx] = useState<number>(0);
   const [spinning, setSpinning] = useState(false);
+  // Out players state: { [name]: { out: boolean, reason: string } }
+  const [outPlayers, setOutPlayers] = useState<Record<string, { out: boolean; reason: string }>>({});
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [removeSelections, setRemoveSelections] = useState<Record<string, string>>({});
 
   function handlePlayerChange(idx: number, value: string) {
     const updated = [...players];
@@ -37,7 +41,38 @@ export default function InumanPage() {
 
 
   function nextTurn() {
-    setCurrent((c) => (c + 1) % order.length);
+    // Find the next player who is not out
+    let next = current;
+    let tries = 0;
+    do {
+      next = (next + 1) % order.length;
+      tries++;
+    } while (outPlayers[order[next]]?.out && tries <= order.length);
+    setCurrent(next);
+  }
+
+  function openRemoveModal() {
+    setRemoveSelections({});
+    setShowRemoveModal(true);
+  }
+
+  function handleRemoveSelection(name: string, reason: string) {
+    setRemoveSelections(prev => ({ ...prev, [name]: reason }));
+  }
+
+  function confirmRemovePlayers() {
+    setOutPlayers(prev => {
+      const updated = { ...prev };
+      Object.entries(removeSelections).forEach(([name, reason]) => {
+        if (reason) updated[name] = { out: true, reason };
+      });
+      return updated;
+    });
+    setShowRemoveModal(false);
+  }
+
+  function cancelRemovePlayers() {
+    setShowRemoveModal(false);
   }
 
   // Wheel animation effect (must be at the top level, before any conditional returns)
@@ -122,32 +157,45 @@ export default function InumanPage() {
         <h1 className="text-3xl font-extrabold bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] bg-clip-text text-transparent mb-4 drop-shadow text-center">Drinking Session</h1>
         <p className="mb-4 text-black/80">Order:</p>
         <ol className="mb-6 w-full flex flex-col gap-2">
-          {order.map((name, idx) => (
-            <li
-              key={idx}
-              className={`flex items-center gap-3 py-2 px-3 rounded-xl border transition-all duration-200 shadow-sm ${
-                idx === current
-                  ? "bg-gradient-to-r from-[#f58529]/40 via-[#dd2a7b]/30 to-[#515bd4]/30 border-[#f58529] scale-105 font-extrabold text-[#dd2a7b] ring-2 ring-[#f58529]/60"
-                  : "bg-white border-gray-200 text-black"
-              }`}
-            >
-              <span
-                className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-lg shadow ${
+          {order.map((name, idx) => {
+            const out = outPlayers[name]?.out;
+            const reason = outPlayers[name]?.reason;
+            return (
+              <li
+                key={idx}
+                className={`flex items-center gap-3 py-2 px-3 rounded-xl border transition-all duration-200 shadow-sm ${
                   idx === current
-                    ? "bg-gradient-to-br from-[#f58529] via-[#dd2a7b] to-[#515bd4] text-white animate-bounce"
-                    : "bg-gray-200 text-[#515bd4]"
+                    ? "bg-gradient-to-r from-[#f58529]/40 via-[#dd2a7b]/30 to-[#515bd4]/30 border-[#f58529] scale-105 font-extrabold text-[#dd2a7b] ring-2 ring-[#f58529]/60"
+                    : out
+                      ? "bg-gray-100 border-gray-300 text-gray-400 line-through opacity-60"
+                      : "bg-white border-gray-200 text-black"
                 }`}
-                aria-label={`Player ${idx + 1}`}
               >
-                {name.charAt(0).toUpperCase()}
-              </span>
-              <span className="flex-1 truncate">{name}</span>
-              <span className="text-xs text-gray-400">#{idx + 1}</span>
-            </li>
-          ))}
+                <span
+                  className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-lg shadow ${
+                    idx === current
+                      ? "bg-gradient-to-br from-[#f58529] via-[#dd2a7b] to-[#515bd4] text-white animate-bounce"
+                      : out
+                        ? "bg-gray-300 text-gray-400"
+                        : "bg-gray-200 text-[#515bd4]"
+                  }`}
+                  aria-label={`Player ${idx + 1}`}
+                >
+                  {name.charAt(0).toUpperCase()}
+                </span>
+                <span className="flex-1 truncate">{name}</span>
+                <span className="text-xs text-gray-400">#{idx + 1}</span>
+                {out && reason && (
+                  <span className="ml-2 text-xs text-red-400">({reason})</span>
+                )}
+              </li>
+            );
+          })}
         </ol>
         <div className="mb-4 text-lg font-semibold text-[#dd2a7b]">
-          {order[current]}, it&apos;s your turn to take a shot!
+          {outPlayers[order[current]]?.out
+            ? `${order[current]} is out!`
+            : `${order[current]}, it’s your turn to take a shot!`}
         </div>
         <button
           className="rounded-full bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] text-white font-semibold px-4 py-1 w-full"
@@ -155,6 +203,62 @@ export default function InumanPage() {
         >
           Next
         </button>
+        <button
+          className="rounded-full bg-gradient-to-r from-[#515bd4] via-[#dd2a7b] to-[#f58529] text-white font-semibold px-4 py-1 w-full mt-2"
+          onClick={openRemoveModal}
+        >
+          Remove Player(s)
+        </button>
+        {/* Remove Player Modal */}
+        {showRemoveModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-xs flex flex-col items-center">
+              <h2 className="text-xl font-bold mb-4 text-[#f58529]">Remove Player(s)</h2>
+              <p className="mb-2 text-black/80 text-sm">Select players to mark as out and choose a reason:</p>
+              <ul className="mb-4 w-full">
+                {order.map((name, idx) => (
+                  <li key={idx} className="flex items-center gap-2 mb-2">
+                    <input
+                      type="checkbox"
+                      id={`remove-${name}`}
+                      checked={!!removeSelections[name]}
+                      disabled={outPlayers[name]?.out}
+                      onChange={e => handleRemoveSelection(name, e.target.checked ? "Sumuka" : "")}
+                    />
+                    <label htmlFor={`remove-${name}`} className={`flex-1 ${outPlayers[name]?.out ? "line-through text-gray-400" : "text-black"}`}>{name}</label>
+                    {!!removeSelections[name] && (
+                      <select
+                        className="rounded border px-1 py-0.5 text-xs"
+                        value={removeSelections[name]}
+                        onChange={e => handleRemoveSelection(name, e.target.value)}
+                      >
+                        <option value="Sumuka">Sumuka</option>
+                        <option value="Tulog">Tulog</option>
+                        <option value="Pass">Pass</option>
+                        <option value="Uuwi na">Uuwi na</option>
+                      </select>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex gap-2 w-full">
+                <button
+                  className="flex-1 rounded-full bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] text-white font-semibold px-4 py-1"
+                  onClick={confirmRemovePlayers}
+                  disabled={Object.keys(removeSelections).length === 0}
+                >
+                  Confirm
+                </button>
+                <button
+                  className="flex-1 rounded-full bg-gray-300 text-gray-700 font-semibold px-4 py-1"
+                  onClick={cancelRemovePlayers}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
