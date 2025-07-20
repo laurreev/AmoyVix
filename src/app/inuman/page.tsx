@@ -40,7 +40,7 @@ export default function InumanPage() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#f58529]/30 via-[#dd2a7b]/30 to-[#515bd4]/30 p-4">
         <div className="bg-white/90 rounded-2xl shadow-2xl flex flex-col items-center px-8 py-10 max-w-md w-full">
           <h1 className="text-3xl font-extrabold bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] bg-clip-text text-transparent mb-4 drop-shadow text-center">Drinking Session</h1>
-          <p className="mb-4 text-black/80">Who's Joining?</p>
+          <p className="mb-4 text-black/80">Who&apos;s Joining?</p>
           {players.map((name, idx) => (
             <input
               key={idx}
@@ -80,7 +80,7 @@ export default function InumanPage() {
           ))}
         </ol>
         <div className="mb-4 text-lg font-semibold text-[#dd2a7b]">
-          {order[current]}, it's your turn to take a shot!
+          {order[current]}, it&apos;s your turn to take a shot!
         </div>
         <button
           className="rounded-full bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] text-white font-semibold px-4 py-1 w-full"
