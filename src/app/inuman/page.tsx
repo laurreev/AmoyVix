@@ -1,8 +1,34 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { db } from "@/firebase";
+import { doc, setDoc, getDoc, onSnapshot, updateDoc, serverTimestamp, collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { useRouter } from "next/navigation";
+
+const SESSION_LIMIT = 2;
 
 export default function InumanPage() {
+  const router = useRouter();
   const [players, setPlayers] = useState<string[]>([""]);
+  type InumanSession = {
+    id: string;
+    players: string[];
+    order: string[];
+    outPlayers: Record<string, { out: boolean; reason: string }>;
+    ended: boolean;
+    endedAt?: any;
+    startedAt?: any;
+    lastActive?: any;
+    current: number;
+    showWheel?: boolean;
+    firstIdx?: number;
+    spinIdx?: number;
+    spinning?: boolean;
+    started?: boolean;
+  };
+  const [ongoingSessions, setOngoingSessions] = useState<InumanSession[]>([]);
+  const [showOngoingDialog, setShowOngoingDialog] = useState(false);
+  const [viewSessionIdx, setViewSessionIdx] = useState<number | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   const [order, setOrder] = useState<string[]>([]);
   const [current, setCurrent] = useState<number>(0);
@@ -15,6 +41,8 @@ export default function InumanPage() {
   const [outPlayers, setOutPlayers] = useState<Record<string, { out: boolean; reason: string }>>({});
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [removeSelections, setRemoveSelections] = useState<Record<string, string>>({});
+  const [ended, setEnded] = useState(false);
+  const isInitialMount = useRef(true);
 
   function handlePlayerChange(idx: number, value: string) {
     const updated = [...players];
@@ -26,21 +54,71 @@ export default function InumanPage() {
     setPlayers([...players, ""]);
   }
 
-  function startSession() {
+  async function startSession() {
+    // Check for ongoing sessions
+    const q = query(collection(db, "inumanSessions"), where("ended", "==", false), orderBy("startedAt", "asc"), limit(SESSION_LIMIT));
+    const snap = await getDocs(q);
+    const sessions = snap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        players: data.players || [],
+        order: data.order || [],
+        outPlayers: data.outPlayers || {},
+        ended: data.ended ?? false,
+        endedAt: data.endedAt,
+        startedAt: data.startedAt,
+        lastActive: data.lastActive,
+        current: data.current ?? 0,
+        showWheel: data.showWheel,
+        firstIdx: data.firstIdx,
+        spinIdx: data.spinIdx,
+        spinning: data.spinning,
+        started: data.started,
+      };
+    });
+    // Auto-end inactive sessions
+    const now = Date.now();
+    let activeCount = 0;
+    for (const s of sessions) {
+      const lastActive = (s as InumanSession).lastActive?.toDate ? (s as InumanSession).lastActive.toDate().getTime() : 0;
+      if (lastActive && now - lastActive > 120 * 60 * 1000) {
+        // End inactive session
+        await updateDoc(doc(db, "inumanSessions", s.id), { ended: true, endedAt: serverTimestamp() });
+      } else {
+        activeCount++;
+      }
+    }
+    if (activeCount >= SESSION_LIMIT) {
+      setOngoingSessions(sessions.filter((s: InumanSession) => !s.ended));
+      setShowOngoingDialog(true);
+      return;
+    }
     const filtered = players.map(p => p.trim()).filter(Boolean);
     if (filtered.length < 2) return;
-    setOrder(filtered);
-    // Pick a random starting index for the wheel
     const idx = Math.floor(Math.random() * filtered.length);
-    setFirstIdx(idx);
-    setSpinIdx(0);
-    setSpinning(true);
-    setShowWheel(true);
-    setStarted(true);
+    const newSessionRef = doc(collection(db, "inumanSessions"));
+    setSessionId(newSessionRef.id);
+    const sessionData = {
+      players: filtered,
+      order: filtered,
+      current: 0,
+      showWheel: true,
+      firstIdx: idx,
+      spinIdx: 0,
+      spinning: true,
+      started: true,
+      outPlayers: {},
+      ended: false,
+      startedAt: serverTimestamp(),
+      endedAt: null,
+      lastActive: serverTimestamp(),
+    };
+    await setDoc(newSessionRef, sessionData);
   }
 
 
-  function nextTurn() {
+  async function nextTurn() {
     // Find the next player who is not out
     let next = current;
     let tries = 0;
@@ -48,7 +126,8 @@ export default function InumanPage() {
       next = (next + 1) % order.length;
       tries++;
     } while (outPlayers[order[next]]?.out && tries <= order.length);
-    setCurrent(next);
+    if (!sessionId) return;
+    await updateDoc(doc(db, "inumanSessions", sessionId), { current: next, lastActive: serverTimestamp() });
   }
 
   function openRemoveModal() {
@@ -60,14 +139,13 @@ export default function InumanPage() {
     setRemoveSelections(prev => ({ ...prev, [name]: reason }));
   }
 
-  function confirmRemovePlayers() {
-    setOutPlayers(prev => {
-      const updated = { ...prev };
-      Object.entries(removeSelections).forEach(([name, reason]) => {
-        if (reason) updated[name] = { out: true, reason };
-      });
-      return updated;
+  async function confirmRemovePlayers() {
+    if (!sessionId) return;
+    const updated = { ...outPlayers };
+    Object.entries(removeSelections).forEach(([name, reason]) => {
+      if (reason) updated[name] = { out: true, reason };
     });
+    await updateDoc(doc(db, "inumanSessions", sessionId), { outPlayers: updated, lastActive: serverTimestamp() });
     setShowRemoveModal(false);
   }
 
@@ -75,7 +153,13 @@ export default function InumanPage() {
     setShowRemoveModal(false);
   }
 
+  async function endSession() {
+    if (!sessionId) return;
+    await updateDoc(doc(db, "inumanSessions", sessionId), { ended: true, endedAt: serverTimestamp() });
+  }
+
   // Wheel animation effect (must be at the top level, before any conditional returns)
+  // Wheel animation effect (local only)
   React.useEffect(() => {
     if (!spinning || !showWheel) return;
     const totalSpins = 20 + Math.floor(Math.random() * 10); // randomize spin length
@@ -92,7 +176,72 @@ export default function InumanPage() {
     return () => clearInterval(interval);
   }, [spinning, order.length, firstIdx, showWheel]);
 
-  if (!started) {
+  // Live session sync: subscribe to Firestore session
+  // Listen to the current session (if any)
+  useEffect(() => {
+    if (!sessionId) return;
+    const unsub = onSnapshot(doc(db, "inumanSessions", sessionId), (docSnap) => {
+      const data = docSnap.data();
+      if (!data) return;
+      setPlayers(data.players || [""]);
+      setOrder(data.order || []);
+      setCurrent(data.current ?? 0);
+      setShowWheel(data.showWheel ?? false);
+      setFirstIdx(data.firstIdx ?? 0);
+      setSpinIdx(data.spinIdx ?? 0);
+      setSpinning(data.spinning ?? false);
+      setStarted(data.started ?? false);
+      setOutPlayers(data.outPlayers || {});
+      setEnded(data.ended ?? false);
+    });
+    return () => unsub();
+  }, [sessionId]);
+
+  // On mount, if session exists and is ongoing, restore; else, start fresh
+  // On mount, find an ongoing session for this user (if any)
+  useEffect(() => {
+    async function findOngoing() {
+      const q = query(collection(db, "inumanSessions"), where("ended", "==", false), orderBy("startedAt", "asc"), limit(SESSION_LIMIT));
+      const snap = await getDocs(q);
+      const sessions = snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          players: data.players || [],
+          order: data.order || [],
+          outPlayers: data.outPlayers || {},
+          ended: data.ended ?? false,
+          endedAt: data.endedAt,
+          startedAt: data.startedAt,
+          lastActive: data.lastActive,
+          current: data.current ?? 0,
+          showWheel: data.showWheel,
+          firstIdx: data.firstIdx,
+          spinIdx: data.spinIdx,
+          spinning: data.spinning,
+          started: data.started,
+        };
+      });
+      // Auto-end inactive sessions
+      const now = Date.now();
+      let found = false;
+      for (const s of sessions) {
+        const lastActive = (s as InumanSession).lastActive?.toDate ? (s as InumanSession).lastActive.toDate().getTime() : 0;
+        if (lastActive && now - lastActive > 120 * 60 * 1000) {
+          await updateDoc(doc(db, "inumanSessions", s.id), { ended: true, endedAt: serverTimestamp() });
+        } else if (!found) {
+          setSessionId(s.id);
+          found = true;
+        }
+      }
+      if (!found) setSessionId(null);
+    }
+    findOngoing();
+  }, []);
+
+
+  // Conditional returns must be at the top level, not nested. Fixing structure:
+  if (!started && !ended && !sessionId) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#f58529]/30 via-[#dd2a7b]/30 to-[#515bd4]/30 p-4">
         <div className="bg-white/90 rounded-2xl shadow-2xl flex flex-col items-center px-8 py-10 max-w-md w-full">
@@ -122,13 +271,47 @@ export default function InumanPage() {
             Start
           </button>
         </div>
+
+        {/* Ongoing Session Dialog */}
+        {showOngoingDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-xs flex flex-col items-center">
+              <h2 className="text-xl font-bold mb-4 text-[#f58529]">There is an ongoing session</h2>
+              <p className="mb-2 text-black/80 text-sm">You cannot start a new session while 2 are ongoing.</p>
+              <ul className="mb-4 w-full">
+                {ongoingSessions.map((s, idx) => (
+                  <li key={s.id} className="mb-2">
+                    <button
+                      className="w-full rounded bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] text-white px-2 py-1 font-semibold"
+                      onClick={() => setViewSessionIdx(idx)}
+                    >
+                      View Session {idx + 1}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <button className="rounded-full bg-gray-300 text-gray-700 font-semibold px-4 py-1 mt-2" onClick={() => setShowOngoingDialog(false)}>Close</button>
+            </div>
+          </div>
+        )}
+        {viewSessionIdx !== null && ongoingSessions[viewSessionIdx] && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-xs flex flex-col items-center">
+              <h2 className="text-xl font-bold mb-4 text-[#f58529]">Ongoing Session</h2>
+              <ul className="mb-4 w-full">
+                {ongoingSessions[viewSessionIdx].order.map((name: string, idx: number) => (
+                  <li key={idx} className={`py-1 px-2 rounded text-center ${ongoingSessions[viewSessionIdx].current === idx ? "bg-[#f58529]/80 text-white font-bold" : "bg-gray-100 text-black"}`}>{name}</li>
+                ))}
+              </ul>
+              <div className="mb-2 text-black/80 text-sm">Current shot taker: <span className="font-bold text-[#f58529]">{ongoingSessions[viewSessionIdx].order[ongoingSessions[viewSessionIdx].current]}</span></div>
+              <button className="rounded-full bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] text-white font-semibold px-4 py-1 mt-2" onClick={() => setViewSessionIdx(null)}>Back</button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
-
-
-  // Show wheel dialog after start
   if (showWheel) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -146,6 +329,18 @@ export default function InumanPage() {
           >
             Let&apos;s go!
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (ended) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#f58529]/30 via-[#dd2a7b]/30 to-[#515bd4]/30 p-4">
+        <div className="bg-white/90 rounded-2xl shadow-2xl flex flex-col items-center px-8 py-10 max-w-md w-full">
+          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] bg-clip-text text-transparent mb-4 drop-shadow text-center">Session Ended</h1>
+          <p className="mb-4 text-black/80">This Inuman session has ended.</p>
+          <button className="rounded-full bg-gradient-to-r from-[#515bd4] via-[#dd2a7b] to-[#f58529] text-white font-semibold px-4 py-1 mt-4" onClick={() => router.push("/")}>Back</button>
         </div>
       </div>
     );
@@ -208,6 +403,13 @@ export default function InumanPage() {
           onClick={openRemoveModal}
         >
           Remove Player(s)
+        </button>
+        <button
+          className="rounded-full bg-gradient-to-r from-[#ff5e62] via-[#ff9966] to-[#ffc371] text-white font-semibold px-4 py-1 w-full mt-2"
+          onClick={endSession}
+          disabled={ended}
+        >
+          End Session
         </button>
         {/* Remove Player Modal */}
         {showRemoveModal && (

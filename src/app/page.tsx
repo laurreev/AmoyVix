@@ -7,7 +7,29 @@ import { AddEventForm } from "../components/AddEventForm";
 import { AddPollForm } from "../components/AddPollForm";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { useState, useEffect } from "react";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, onSnapshot, query, orderBy, where, limit } from "firebase/firestore";
+type InumanSession = {
+  players: string[];
+  order: string[];
+  outPlayers: Record<string, { out: boolean; reason: string }>;
+  ended: boolean;
+  endedAt?: any;
+};
+  const [recentSession, setRecentSession] = useState<InumanSession | null>(null);
+
+  // Fetch most recent ended Inuman session
+  useEffect(() => {
+    const db = getFirestore(app);
+    const q = query(collection(db, "inumanSessions"), where("ended", "==", true), orderBy("endedAt", "desc"), limit(1));
+    const unsub = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        setRecentSession(snapshot.docs[0].data() as InumanSession);
+      } else {
+        setRecentSession(null);
+      }
+    });
+    return () => unsub();
+  }, []);
 import { app } from "../firebase";
 import { AppNav } from "../components/AppNav";
 import { SetNicknameModal } from "../components/SetNicknameModal";
@@ -152,6 +174,31 @@ export default function Home() {
         <div className="h-1 w-24 mx-auto bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] rounded-full mb-2"></div>
       </header>
       <div className="w-full max-w-xl bg-white/90 rounded-xl shadow p-6 mb-4 text-black">
+        {/* Recent Inuman Session Stats */}
+        <div className="mb-6">
+          <h3 className="text-lg font-bold mb-2 text-[#f58529]">Recent Inuman Session Stats</h3>
+          {recentSession ? (
+            <div className="bg-gradient-to-r from-[#f58529]/10 via-[#dd2a7b]/10 to-[#515bd4]/10 rounded-xl p-4">
+              <div className="mb-2 text-sm text-gray-700">Players:</div>
+              <ul className="mb-2">
+                {recentSession.order.map((name, idx) => {
+                  const out = recentSession.outPlayers?.[name]?.out;
+                  const reason = recentSession.outPlayers?.[name]?.reason;
+                  return (
+                    <li key={idx} className={`flex items-center gap-2 mb-1 ${out ? "text-gray-400" : "text-black"}`}>
+                      <span className={`font-bold ${out ? "bg-gray-200" : "bg-gradient-to-br from-[#f58529] via-[#dd2a7b] to-[#515bd4] text-white"} rounded-full px-2 py-1 text-xs`}>{name}</span>
+                      <span className="text-xs font-semibold ml-2">
+                        {out ? `Weakling${reason ? ` (${reason})` : ""}` : "Matibay"}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : (
+            <div className="text-gray-500 text-sm">No recent session yet.</div>
+          )}
+        </div>
         {isAdmin && <AddEventForm onAdd={handleAddEvent} />}
         {events.length > 0 ? <EventList events={events} /> : <div className="text-gray-600">No events yet.</div>}
         {isAdmin && <AddPollForm onAdd={handleAddPoll} />}
