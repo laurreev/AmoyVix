@@ -50,7 +50,7 @@ export default function Home() {
       try {
         const db = getFirestore(app);
         const ref = doc(db, "users", user.uid);
-        await setDoc(ref, { nickname }, { merge: true });
+        await setDoc(ref, { nickname: nick }, { merge: true });
         setNickname(nick);
         setShowNicknameModal(false);
       } catch (e) {
@@ -107,7 +107,7 @@ export default function Home() {
     );
   }
   return (
-    <div className="font-sans flex flex-col items-center min-h-screen p-4 sm:p-10 gap-8">
+    <div className="font-sans flex flex-col items-center min-h-screen p-4 sm:p-10 gap-8 bg-gradient-to-br from-[#f58529]/30 via-[#dd2a7b]/30 to-[#515bd4]/30">
       <SetNicknameModal open={showNicknameModal} onSave={handleSaveNickname} defaultValue={nickname || user.displayName || user.email || ""} />
       <AppNav
         nickname={nickname || user.displayName || user.email || ""}
@@ -115,16 +115,18 @@ export default function Home() {
         onEditNickname={() => setShowNicknameModal(true)}
       />
       <header className="w-full max-w-xl text-center mb-4">
-        <p className="text-white/80 mt-2">Welcome, {nickname || user.displayName || user.email}!</p>
+        <p className="text-black mt-2">Welcome, {nickname || user.displayName || user.email}!</p>
       </header>
-      {isAdmin && <AddEventForm onAdd={handleAddEvent} />}
-      {events.length > 0 ? <EventList events={events} /> : <div className="text-white/80">No events yet.</div>}
-      {isAdmin && <AddPollForm onAdd={handleAddPoll} />}
-      {polls.length > 0 ? polls.map((poll, idx) => (
-        <Poll key={idx} question={poll.question} options={poll.options} />
-      )) : <div className="text-white/80">No polls yet.</div>}
-      <FunWidget nextEvent={events[0]?.title + " on " + events[0]?.date} memory={randomMemory} />
-      <footer className="mt-8 text-center text-white/80 text-xs">
+      <div className="w-full max-w-xl bg-white/90 rounded-xl shadow p-6 mb-4 text-black">
+        {isAdmin && <AddEventForm onAdd={handleAddEvent} />}
+        {events.length > 0 ? <EventList events={events} /> : <div className="text-gray-600">No events yet.</div>}
+        {isAdmin && <AddPollForm onAdd={handleAddPoll} />}
+        {polls.length > 0 ? polls.map((poll, idx) => (
+          <Poll key={idx} question={poll.question} options={poll.options} />
+        )) : <div className="text-gray-600">No polls yet.</div>}
+        <FunWidget nextEvent={events[0]?.title + " on " + events[0]?.date} memory={randomMemory} />
+      </div>
+      <footer className="mt-8 text-center text-black/60 text-xs">
         &copy; {new Date().getFullYear()} AmoyVix. For our friends only.
       </footer>
     </div>
