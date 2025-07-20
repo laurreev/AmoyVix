@@ -5,11 +5,36 @@ import { AuthButton } from "../components/AuthButton";
 import { AddEventForm } from "../components/AddEventForm";
 import { AddPollForm } from "../components/AddPollForm";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppNav } from "../components/AppNav";
+import { SetNicknameModal } from "../components/SetNicknameModal";
 
 export default function Home() {
   const { user, isAdmin } = useFirebaseAuth();
+  const [nickname, setNickname] = useState<string | null>(null);
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
+
+  // Prompt for nickname on first login
+  useEffect(() => {
+    if (user) {
+      const key = `amoyvix-nickname-${user.uid}`;
+      const stored = typeof window !== "undefined" ? localStorage.getItem(key) : null;
+      if (stored) {
+        setNickname(stored);
+      } else {
+        setShowNicknameModal(true);
+      }
+    }
+  }, [user]);
+
+  const handleSaveNickname = (nick: string) => {
+    if (user) {
+      const key = `amoyvix-nickname-${user.uid}`;
+      localStorage.setItem(key, nick);
+      setNickname(nick);
+      setShowNicknameModal(false);
+    }
+  };
   const [events, setEvents] = useState<Event[]>([
     { id: "1", title: "Beach Day", date: "2025-08-10", description: "Let's have fun at the beach!" },
     { id: "2", title: "Game Night", date: "2025-08-24", description: "Board games and snacks." },
@@ -56,9 +81,14 @@ export default function Home() {
   }
   return (
     <div className="font-sans flex flex-col items-center min-h-screen p-4 sm:p-10 gap-8">
-      <AppNav />
+      <SetNicknameModal open={showNicknameModal} onSave={handleSaveNickname} defaultValue={nickname || user.displayName || user.email || ""} />
+      <AppNav
+        nickname={nickname || user.displayName || user.email || ""}
+        photoURL={user.photoURL}
+        onEditNickname={() => setShowNicknameModal(true)}
+      />
       <header className="w-full max-w-xl text-center mb-4">
-        <p className="text-white/80 mt-2">Welcome, {user.displayName || user.email}!</p>
+        <p className="text-white/80 mt-2">Welcome, {nickname || user.displayName || user.email}!</p>
       </header>
       {isAdmin && <AddEventForm onAdd={handleAddEvent} />}
       {events.length > 0 ? <EventList events={events} /> : <div className="text-white/80">No events yet.</div>}
