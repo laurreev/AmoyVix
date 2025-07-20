@@ -7,7 +7,7 @@ import { AddEventForm } from "../components/AddEventForm";
 import { AddPollForm } from "../components/AddPollForm";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { useState, useEffect } from "react";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
 import { app } from "../firebase";
 import { AppNav } from "../components/AppNav";
 import { SetNicknameModal } from "../components/SetNicknameModal";
@@ -16,6 +16,8 @@ export default function Home() {
   const { user, isAdmin } = useFirebaseAuth();
   const [nickname, setNickname] = useState<string | null>(null);
   const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [photoURL, setPhotoURL] = useState<string | null>(null);
+// photoURL state already declared at the top
 
   // Prompt for nickname on first login, now persistent in Firestore
   useEffect(() => {
@@ -25,8 +27,10 @@ export default function Home() {
           const db = getFirestore(app);
           const ref = doc(db, "users", user.uid);
           const snap = await getDoc(ref);
-          if (snap.exists() && snap.data().nickname) {
-            setNickname(snap.data().nickname);
+          if (snap.exists()) {
+            const data = snap.data();
+            if (data.nickname) setNickname(data.nickname);
+            if (data.photoURL) setPhotoURL(data.photoURL);
           } else {
             setShowNicknameModal(true);
           }
@@ -42,6 +46,7 @@ export default function Home() {
         }
       };
       fetchNickname();
+      setPhotoURL(user.photoURL || null);
     }
   }, [user]);
 
@@ -62,17 +67,27 @@ export default function Home() {
       }
     }
   };
-  const [events, setEvents] = useState<Event[]>([
-    { id: "1", title: "Beach Day", date: "2025-08-10", description: "Let's have fun at the beach!" },
-    { id: "2", title: "Game Night", date: "2025-08-24", description: "Board games and snacks." },
-  ]);
-  const [polls, setPolls] = useState([
-    { question: "What should we eat for our next meetup?", options: [
-      { id: "a", text: "Pizza" },
-      { id: "b", text: "Sushi" },
-      { id: "c", text: "Burgers" },
-    ] }
-  ]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [polls, setPolls] = useState<any[]>([]);
+  // Real-time Firestore sync for events
+  useEffect(() => {
+    const db = getFirestore(app);
+    const q = query(collection(db, "events"), orderBy("date", "asc"));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Event)));
+    });
+    return () => unsub();
+  }, []);
+
+  // Real-time Firestore sync for polls
+  useEffect(() => {
+    const db = getFirestore(app);
+    const q = query(collection(db, "polls"));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setPolls(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsub();
+  }, []);
   const memories = [
     "Remember our epic karaoke night?",
     "That time we got lost on the hike!",
@@ -82,17 +97,16 @@ export default function Home() {
   ];
   const randomMemory = memories[Math.floor(Math.random() * memories.length)];
 
-  const handleAddEvent = (title: string, date: string, description: string) => {
-    setEvents(evts => [
-      ...evts,
-      { id: Date.now().toString(), title, date, description }
-    ]);
+  const handleAddEvent = async (title: string, date: string, description: string) => {
+    const db = getFirestore(app);
+    await addDoc(collection(db, "events"), { title, date, description });
   };
-  const handleAddPoll = (question: string, options: string[]) => {
-    setPolls(pls => [
-      ...pls,
-      { question, options: options.map((text, i) => ({ id: i.toString(), text })) }
-    ]);
+  const handleAddPoll = async (question: string, options: string[]) => {
+    const db = getFirestore(app);
+    await addDoc(collection(db, "polls"), {
+      question,
+      options: options.map((text, i) => ({ id: i.toString(), text }))
+    });
   };
 
   if (!user) {
@@ -111,11 +125,20 @@ export default function Home() {
       <SetNicknameModal open={showNicknameModal} onSave={handleSaveNickname} defaultValue={nickname || user.displayName || user.email || ""} />
       <AppNav
         nickname={nickname || user.displayName || user.email || ""}
-        photoURL={user.photoURL}
-        onEditNickname={() => setShowNicknameModal(true)}
+        photoURL={photoURL || user.photoURL}
+        onEditProfile={(newNickname, newPhotoURL) => {
+          if (user) {
+            const db = getFirestore(app);
+            const ref = doc(db, "users", user.uid);
+            setDoc(ref, { nickname: newNickname, photoURL: newPhotoURL }, { merge: true });
+            setNickname(newNickname);
+            setPhotoURL(newPhotoURL || null);
+          }
+        }}
       />
       <header className="w-full max-w-xl text-center mb-4">
-        <p className="text-black mt-2">Welcome, {nickname || user.displayName || user.email}!</p>
+        <h2 className="text-2xl font-extrabold bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] bg-clip-text text-transparent drop-shadow mb-1">Welcome{nickname ? ", " : ""}{nickname || user.displayName || user.email}!</h2>
+        <div className="h-1 w-24 mx-auto bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] rounded-full mb-2"></div>
       </header>
       <div className="w-full max-w-xl bg-white/90 rounded-xl shadow p-6 mb-4 text-black">
         {isAdmin && <AddEventForm onAdd={handleAddEvent} />}
