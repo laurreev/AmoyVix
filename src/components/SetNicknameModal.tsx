@@ -12,7 +12,9 @@ import { useEffect } from "react";
 export const SetNicknameModal: React.FC<SetNicknameModalProps> = ({ open, onSave, defaultValue }) => {
   const [nickname, setNickname] = useState(defaultValue || "");
   useEffect(() => {
-    setNickname(defaultValue || "");
+    if (open) {
+      setNickname(defaultValue || "");
+    }
   }, [defaultValue, open]);
   if (!open) return null;
   return (

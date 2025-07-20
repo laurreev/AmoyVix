@@ -35,7 +35,11 @@ export const AuthButton = () => {
         )}
       </div>
       <button
-        onClick={signOut}
+        onClick={() => {
+          if (window.confirm("Are you sure you want to sign out?")) {
+            signOut();
+          }
+        }}
         className="rounded-full bg-white/80 text-[#dd2a7b] font-semibold px-4 py-1 shadow hover:bg-white transition text-sm"
       >
         Sign out

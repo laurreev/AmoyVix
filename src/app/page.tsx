@@ -50,14 +50,7 @@ export default function Home() {
             }
           }
         } catch (e) {
-          // fallback to localStorage if Firestore fails
-          const key = `amoyvix-nickname-${user.uid}`;
-          const stored = typeof window !== "undefined" ? localStorage.getItem(key) : null;
-          if (stored) {
-            setNickname(stored);
-          } else {
-            setShowNicknameModal(true);
-          }
+          setShowNicknameModal(true);
           setPhotoURL(user.photoURL || null);
         }
       };
@@ -74,10 +67,6 @@ export default function Home() {
         setNickname(nick);
         setShowNicknameModal(false);
       } catch (e) {
-        // fallback to localStorage if Firestore fails
-        const key = `amoyvix-nickname-${user.uid}`;
-        localStorage.setItem(key, nick);
-        setNickname(nick);
         setShowNicknameModal(false);
       }
     }

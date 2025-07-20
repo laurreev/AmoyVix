@@ -31,6 +31,13 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ nickname, photoURL, on
             Profile
           </button>
           <button
+            className="flex items-center gap-2 px-4 py-2 hover:bg-[#f58529]/10 text-[#f58529] text-sm"
+            onClick={() => { window.location.href = "/inuman"; }}
+          >
+            <svg width="18" height="18" fill="none" stroke="#f58529" strokeWidth="2" viewBox="0 0 24 24"><path d="M8 21v-2a4 4 0 0 1 8 0v2"/><path d="M12 17v-6"/><circle cx="12" cy="7" r="4"/></svg>
+            Inuman na
+          </button>
+          <button
             className="flex items-center gap-2 px-4 py-2 hover:bg-[#f58529]/10 text-[#dd2a7b] text-sm"
             onClick={signOut}
           >
