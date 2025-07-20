@@ -8,6 +8,9 @@ export default function InumanPage() {
   const [current, setCurrent] = useState<number>(0);
   const [showWheel, setShowWheel] = useState(false);
   const [firstIdx, setFirstIdx] = useState<number>(0);
+  // Wheel animation state (must be top-level for hooks)
+  const [spinIdx, setSpinIdx] = useState<number>(0);
+  const [spinning, setSpinning] = useState(false);
 
   function handlePlayerChange(idx: number, value: string) {
     const updated = [...players];
@@ -26,6 +29,8 @@ export default function InumanPage() {
     // Pick a random starting index for the wheel
     const idx = Math.floor(Math.random() * filtered.length);
     setFirstIdx(idx);
+    setSpinIdx(0);
+    setSpinning(true);
     setShowWheel(true);
     setStarted(true);
   }
@@ -68,26 +73,25 @@ export default function InumanPage() {
     );
   }
 
+  // Wheel animation effect (must be outside conditional)
+  React.useEffect(() => {
+    if (!spinning || !showWheel) return;
+    let totalSpins = 20 + Math.floor(Math.random() * 10); // randomize spin length
+    let count = 0;
+    const interval = setInterval(() => {
+      setSpinIdx(i => (i + 1) % order.length);
+      count++;
+      if (count > totalSpins) {
+        clearInterval(interval);
+        setSpinIdx(firstIdx);
+        setSpinning(false);
+      }
+    }, 80);
+    return () => clearInterval(interval);
+  }, [spinning, order.length, firstIdx, showWheel]);
+
   // Show wheel dialog after start
   if (showWheel) {
-    // Simple wheel animation: highlight each name in order, then stop at firstIdx
-    const [spinIdx, setSpinIdx] = useState<number>(0);
-    const [spinning, setSpinning] = useState(true);
-    React.useEffect(() => {
-      if (!spinning) return;
-      let totalSpins = 20 + Math.floor(Math.random() * 10); // randomize spin length
-      let count = 0;
-      const interval = setInterval(() => {
-        setSpinIdx(i => (i + 1) % order.length);
-        count++;
-        if (count > totalSpins) {
-          clearInterval(interval);
-          setSpinIdx(firstIdx);
-          setSpinning(false);
-        }
-      }, 80);
-      return () => clearInterval(interval);
-    }, [spinning, order.length, firstIdx]);
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
         <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-xs flex flex-col items-center">
