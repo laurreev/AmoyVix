@@ -1,3 +1,4 @@
+"use client";
 import { EventList, Event } from "../components/EventList";
 import { Poll, PollOption } from "../components/Poll";
 import { FunWidget } from "../components/FunWidget";
