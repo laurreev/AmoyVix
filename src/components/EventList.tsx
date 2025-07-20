@@ -12,7 +12,7 @@ interface EventListProps {
 }
 
 export const EventList: React.FC<EventListProps> = ({ events }) => (
-  <section className="w-full max-w-xl bg-white/80 rounded-xl shadow p-6 mb-8">
+  <section className="w-full max-w-xl bg-white/80 rounded-xl shadow p-6 mb-8 text-black">
     <h2 className="text-xl font-bold mb-4 text-center text-[#dd2a7b]">Upcoming Events</h2>
     {events.length === 0 ? (
       <p className="text-center text-gray-500">No events yet!</p>

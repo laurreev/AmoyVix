@@ -7,6 +7,8 @@ import { AddEventForm } from "../components/AddEventForm";
 import { AddPollForm } from "../components/AddPollForm";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { useState, useEffect } from "react";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { app } from "../firebase";
 import { AppNav } from "../components/AppNav";
 import { SetNicknameModal } from "../components/SetNicknameModal";
 
@@ -15,25 +17,49 @@ export default function Home() {
   const [nickname, setNickname] = useState<string | null>(null);
   const [showNicknameModal, setShowNicknameModal] = useState(false);
 
-  // Prompt for nickname on first login
+  // Prompt for nickname on first login, now persistent in Firestore
   useEffect(() => {
     if (user) {
-      const key = `amoyvix-nickname-${user.uid}`;
-      const stored = typeof window !== "undefined" ? localStorage.getItem(key) : null;
-      if (stored) {
-        setNickname(stored);
-      } else {
-        setShowNicknameModal(true);
-      }
+      const fetchNickname = async () => {
+        try {
+          const db = getFirestore(app);
+          const ref = doc(db, "users", user.uid);
+          const snap = await getDoc(ref);
+          if (snap.exists() && snap.data().nickname) {
+            setNickname(snap.data().nickname);
+          } else {
+            setShowNicknameModal(true);
+          }
+        } catch (e) {
+          // fallback to localStorage if Firestore fails
+          const key = `amoyvix-nickname-${user.uid}`;
+          const stored = typeof window !== "undefined" ? localStorage.getItem(key) : null;
+          if (stored) {
+            setNickname(stored);
+          } else {
+            setShowNicknameModal(true);
+          }
+        }
+      };
+      fetchNickname();
     }
   }, [user]);
 
-  const handleSaveNickname = (nick: string) => {
+  const handleSaveNickname = async (nick: string) => {
     if (user) {
-      const key = `amoyvix-nickname-${user.uid}`;
-      localStorage.setItem(key, nick);
-      setNickname(nick);
-      setShowNicknameModal(false);
+      try {
+        const db = getFirestore(app);
+        const ref = doc(db, "users", user.uid);
+        await setDoc(ref, { nickname }, { merge: true });
+        setNickname(nick);
+        setShowNicknameModal(false);
+      } catch (e) {
+        // fallback to localStorage if Firestore fails
+        const key = `amoyvix-nickname-${user.uid}`;
+        localStorage.setItem(key, nick);
+        setNickname(nick);
+        setShowNicknameModal(false);
+      }
     }
   };
   const [events, setEvents] = useState<Event[]>([
@@ -71,12 +97,12 @@ export default function Home() {
 
   if (!user) {
     return (
-      <div className="font-sans flex flex-col items-center min-h-screen p-4 sm:p-10 gap-8">
-        <header className="w-full max-w-xl text-center mb-4">
-          <h1 className="text-4xl font-extrabold bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] bg-clip-text text-transparent mb-2 drop-shadow">AmoyVix</h1>
-          <p className="text-lg text-white/90 font-medium">A private space for our group of friends</p>
-        </header>
-        <AuthButton />
+      <div className="font-sans min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f58529]/30 via-[#dd2a7b]/30 to-[#515bd4]/30 p-4">
+        <div className="bg-white/90 rounded-2xl shadow-2xl flex flex-col items-center px-8 py-10 max-w-md w-full">
+          <h1 className="text-4xl font-extrabold bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] bg-clip-text text-transparent mb-2 drop-shadow text-center">AmoyVix</h1>
+          <p className="text-lg text-black/80 font-medium mb-8 text-center">A private space for our group of friends</p>
+          <AuthButton />
+        </div>
       </div>
     );
   }
