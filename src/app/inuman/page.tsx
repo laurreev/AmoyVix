@@ -4,28 +4,29 @@ import { db } from "@/firebase";
 import { doc, setDoc, onSnapshot, updateDoc, serverTimestamp, collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
+type FirestoreTimestamp = { toDate: () => Date };
+type InumanSession = {
+  id: string;
+  players: string[];
+  order: string[];
+  outPlayers: Record<string, { out: boolean; reason: string }>;
+  ended: boolean;
+  endedAt?: Date | FirestoreTimestamp | null;
+  startedAt?: Date | FirestoreTimestamp | null;
+  lastActive?: Date | FirestoreTimestamp | null;
+  current: number;
+  showWheel?: boolean;
+  firstIdx?: number;
+  spinIdx?: number;
+  spinning?: boolean;
+  started?: boolean;
+};
+
 const SESSION_LIMIT = 2;
 
 export default function InumanPage() {
   const router = useRouter();
   const [players, setPlayers] = useState<string[]>([""]);
-  type FirestoreTimestamp = { toDate: () => Date };
-  type InumanSession = {
-    id: string;
-    players: string[];
-    order: string[];
-    outPlayers: Record<string, { out: boolean; reason: string }>;
-    ended: boolean;
-    endedAt?: Date | FirestoreTimestamp | null;
-    startedAt?: Date | FirestoreTimestamp | null;
-    lastActive?: Date | FirestoreTimestamp | null;
-    current: number;
-    showWheel?: boolean;
-    firstIdx?: number;
-    spinIdx?: number;
-    spinning?: boolean;
-    started?: boolean;
-  };
 
   function getTimestampMillis(ts?: Date | FirestoreTimestamp | null): number {
     if (!ts) return 0;

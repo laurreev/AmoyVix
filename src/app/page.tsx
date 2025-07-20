@@ -1,21 +1,33 @@
 "use client";
 import { EventList, Event } from "../components/EventList";
-import { Poll } from "../components/Poll";
-import { FunWidget } from "../components/FunWidget";
+import { AppNav } from "../components/AppNav";
+import { SetNicknameModal } from "../components/SetNicknameModal";
 import { AuthButton } from "../components/AuthButton";
 import { AddEventForm } from "../components/AddEventForm";
 import { AddPollForm } from "../components/AddPollForm";
+import { Poll } from "../components/Poll";
+import { FunWidget } from "../components/FunWidget";
+import { app } from "../firebase";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { useState, useEffect } from "react";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, onSnapshot, query, orderBy, where, limit } from "firebase/firestore";
 type InumanSession = {
   players: string[];
   order: string[];
   outPlayers: Record<string, { out: boolean; reason: string }>;
   ended: boolean;
-  endedAt?: any;
+  endedAt?: Date | { toDate: () => Date } | null;
 };
+type PollOption = { id: string; text: string };
+type PollType = { id: string; question: string; options: PollOption[] };
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, onSnapshot, query, orderBy, where, limit } from "firebase/firestore";
+export default function Home() {
+  const { user, isAdmin } = useFirebaseAuth();
+  const [nickname, setNickname] = useState<string | null>(null);
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [photoURL, setPhotoURL] = useState<string | null>(null);
   const [recentSession, setRecentSession] = useState<InumanSession | null>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [polls, setPolls] = useState<PollType[]>([]);
 
   // Fetch most recent ended Inuman session
   useEffect(() => {
@@ -30,16 +42,6 @@ type InumanSession = {
     });
     return () => unsub();
   }, []);
-import { app } from "../firebase";
-import { AppNav } from "../components/AppNav";
-import { SetNicknameModal } from "../components/SetNicknameModal";
-
-export default function Home() {
-  const { user, isAdmin } = useFirebaseAuth();
-  const [nickname, setNickname] = useState<string | null>(null);
-  const [showNicknameModal, setShowNicknameModal] = useState(false);
-  const [photoURL, setPhotoURL] = useState<string | null>(null);
-// photoURL state already declared at the top
 
   // Prompt for nickname on first login, now persistent in Firestore
   useEffect(() => {
@@ -93,10 +95,7 @@ export default function Home() {
       }
     }
   };
-  const [events, setEvents] = useState<Event[]>([]);
-  type PollOption = { id: string; text: string };
-  type PollType = { id: string; question: string; options: PollOption[] };
-  const [polls, setPolls] = useState<PollType[]>([]);
+
   // Real-time Firestore sync for events
   useEffect(() => {
     const db = getFirestore(app);
@@ -181,7 +180,7 @@ export default function Home() {
             <div className="bg-gradient-to-r from-[#f58529]/10 via-[#dd2a7b]/10 to-[#515bd4]/10 rounded-xl p-4">
               <div className="mb-2 text-sm text-gray-700">Players:</div>
               <ul className="mb-2">
-                {recentSession.order.map((name, idx) => {
+                {recentSession.order.map((name: string, idx: number) => {
                   const out = recentSession.outPlayers?.[name]?.out;
                   const reason = recentSession.outPlayers?.[name]?.reason;
                   return (
@@ -202,7 +201,7 @@ export default function Home() {
         {isAdmin && <AddEventForm onAdd={handleAddEvent} />}
         {events.length > 0 ? <EventList events={events} /> : <div className="text-gray-600">No events yet.</div>}
         {isAdmin && <AddPollForm onAdd={handleAddPoll} />}
-        {polls.length > 0 ? polls.map((poll, idx) => (
+        {polls.length > 0 ? polls.map((poll: PollType, idx: number) => (
           <Poll key={idx} question={poll.question} options={poll.options} />
         )) : <div className="text-gray-600">No polls yet.</div>}
         <FunWidget nextEvent={events[0]?.title + " on " + events[0]?.date} memory={randomMemory} />
