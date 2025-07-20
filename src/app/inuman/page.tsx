@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { db } from "@/firebase";
 import { doc, setDoc, onSnapshot, updateDoc, serverTimestamp, collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 import { useRouter } from "next/navigation";
@@ -249,7 +249,7 @@ export default function InumanPage() {
       if (!found) setSessionId(null);
     }
     findOngoing();
-  }, []);
+  }, [getTimestampMillis]);
 
 
   // Conditional returns must be at the top level, not nested. Fixing structure:
