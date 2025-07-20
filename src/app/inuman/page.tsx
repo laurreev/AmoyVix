@@ -35,10 +35,12 @@ export default function InumanPage() {
     setStarted(true);
   }
 
+
   function nextTurn() {
     setCurrent((c) => (c + 1) % order.length);
   }
 
+  // Wheel animation effect (must be at the top level, before any conditional returns)
   React.useEffect(() => {
     if (!spinning || !showWheel) return;
     const totalSpins = 20 + Math.floor(Math.random() * 10); // randomize spin length
