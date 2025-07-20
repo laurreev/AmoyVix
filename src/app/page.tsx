@@ -157,7 +157,9 @@ export default function Home() {
         }}
       />
       <header className="w-full max-w-xl text-center mb-4">
-        <h2 className="text-2xl font-extrabold bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] bg-clip-text text-transparent drop-shadow mb-1">Welcome{nickname ? ", " : ""}{nickname || user.displayName || user.email}!</h2>
+        <h2 className="text-2xl font-extrabold bg-gradient-to-r from-[#ff9966] via-[#ff5e62] to-[#ffc371] bg-clip-text text-transparent drop-shadow mb-1">
+          Welcome{nickname ? ", " : ""}{nickname || user.displayName || user.email}!
+        </h2>
         <div className="h-1 w-24 mx-auto bg-gradient-to-r from-[#f58529] via-[#dd2a7b] to-[#515bd4] rounded-full mb-2"></div>
       </header>
       <div className="w-full max-w-xl bg-white/90 rounded-xl shadow p-6 mb-4 text-black">
