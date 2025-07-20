@@ -1,6 +1,6 @@
 "use client";
 import { EventList, Event } from "../components/EventList";
-import { Poll, PollOption } from "../components/Poll";
+import { Poll } from "../components/Poll";
 import { FunWidget } from "../components/FunWidget";
 import { AuthButton } from "../components/AuthButton";
 import { AddEventForm } from "../components/AddEventForm";
@@ -68,7 +68,9 @@ export default function Home() {
     }
   };
   const [events, setEvents] = useState<Event[]>([]);
-  const [polls, setPolls] = useState<any[]>([]);
+  type PollOption = { id: string; text: string };
+  type PollType = { id: string; question: string; options: PollOption[] };
+  const [polls, setPolls] = useState<PollType[]>([]);
   // Real-time Firestore sync for events
   useEffect(() => {
     const db = getFirestore(app);
@@ -84,16 +86,19 @@ export default function Home() {
     const db = getFirestore(app);
     const q = query(collection(db, "polls"));
     const unsub = onSnapshot(q, (snapshot) => {
-      setPolls(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setPolls(snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          question: data.question,
+          options: Array.isArray(data.options) ? data.options : []
+        };
+      }));
     });
     return () => unsub();
   }, []);
   const memories = [
-    "Remember our epic karaoke night?",
-    "That time we got lost on the hike!",
-    "The group costume party was legendary.",
-    "Movie marathon until 3am!",
-    "Our first beach trip together."
+    "Susuka pero hindi susubo, susuko*"
   ];
   const randomMemory = memories[Math.floor(Math.random() * memories.length)];
 
