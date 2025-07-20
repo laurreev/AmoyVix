@@ -20,14 +20,9 @@ export default function InumanPage() {
   function startSession() {
     const filtered = players.map(p => p.trim()).filter(Boolean);
     if (filtered.length < 2) return;
-    // Shuffle for first turn, then keep order
-    const shuffled = [...filtered];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    setOrder(shuffled);
-    setCurrent(0);
+    setOrder(filtered);
+    // Pick a random starting index
+    setCurrent(Math.floor(Math.random() * filtered.length));
     setStarted(true);
   }
 
