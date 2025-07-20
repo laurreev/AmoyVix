@@ -7,15 +7,20 @@ interface SetNicknameModalProps {
   defaultValue?: string;
 }
 
+import { useEffect } from "react";
+
 export const SetNicknameModal: React.FC<SetNicknameModalProps> = ({ open, onSave, defaultValue }) => {
-  const [nickname, setNickname] = useState(defaultValue || "");
+  const [nickname, setNickname] = useState("");
+  useEffect(() => {
+    if (open) setNickname("");
+  }, [open]);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-xs flex flex-col items-center">
         <h2 className="text-lg font-bold mb-2 text-[#dd2a7b]">Set your Nickname</h2>
         <input
-          className="rounded px-2 py-1 border w-full mb-4"
+          className="rounded px-2 py-1 border w-full mb-4 text-black"
           placeholder="Enter nickname"
           value={nickname}
           onChange={e => setNickname(e.target.value)}

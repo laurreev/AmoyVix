@@ -25,7 +25,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ nickname, photoURL, on
         <div className="absolute left-0 mt-2 w-44 bg-white rounded-xl shadow-lg z-50 flex flex-col py-2">
           <button
             className="flex items-center gap-2 px-4 py-2 hover:bg-[#f58529]/10 text-[#dd2a7b] text-sm"
-            onClick={onEditNickname}
+            onClick={() => { setOpen(false); onEditNickname(); }}
           >
             <svg width="18" height="18" fill="none" stroke="#dd2a7b" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19.5 3 21l1.5-4L16.5 3.5z"/></svg>
             Edit Nickname
