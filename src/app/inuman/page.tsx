@@ -39,6 +39,22 @@ export default function InumanPage() {
     setCurrent((c) => (c + 1) % order.length);
   }
 
+  React.useEffect(() => {
+    if (!spinning || !showWheel) return;
+    const totalSpins = 20 + Math.floor(Math.random() * 10); // randomize spin length
+    let count = 0;
+    const interval = setInterval(() => {
+      setSpinIdx(i => (i + 1) % order.length);
+      count++;
+      if (count > totalSpins) {
+        clearInterval(interval);
+        setSpinIdx(firstIdx);
+        setSpinning(false);
+      }
+    }, 80);
+    return () => clearInterval(interval);
+  }, [spinning, order.length, firstIdx, showWheel]);
+
   if (!started) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#f58529]/30 via-[#dd2a7b]/30 to-[#515bd4]/30 p-4">
