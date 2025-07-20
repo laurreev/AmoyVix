@@ -91,22 +91,7 @@ export default function InumanPage() {
     );
   }
 
-  // Wheel animation effect (must be outside conditional)
-  React.useEffect(() => {
-    if (!spinning || !showWheel) return;
-    const totalSpins = 20 + Math.floor(Math.random() * 10); // randomize spin length
-    let count = 0;
-    const interval = setInterval(() => {
-      setSpinIdx(i => (i + 1) % order.length);
-      count++;
-      if (count > totalSpins) {
-        clearInterval(interval);
-        setSpinIdx(firstIdx);
-        setSpinning(false);
-      }
-    }, 80);
-    return () => clearInterval(interval);
-  }, [spinning, order.length, firstIdx, showWheel]);
+
 
   // Show wheel dialog after start
   if (showWheel) {
