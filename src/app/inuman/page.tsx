@@ -228,7 +228,7 @@ export default function InumanPage() {
                     <label htmlFor={`remove-${name}`} className={`flex-1 ${outPlayers[name]?.out ? "line-through text-gray-400" : "text-black"}`}>{name}</label>
                     {!!removeSelections[name] && (
                       <select
-                        className="rounded border px-1 py-0.5 text-xs"
+                        className="rounded border px-1 py-0.5 text-xs bg-black text-white focus:ring-2 focus:ring-[#f58529]"
                         value={removeSelections[name]}
                         onChange={e => handleRemoveSelection(name, e.target.value)}
                       >
