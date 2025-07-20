@@ -22,7 +22,7 @@ export default function Home() {
   // Prompt for nickname on first login, now persistent in Firestore
   useEffect(() => {
     if (user) {
-      const fetchNickname = async () => {
+      const fetchProfile = async () => {
         try {
           const db = getFirestore(app);
           const ref = doc(db, "users", user.uid);
@@ -30,9 +30,24 @@ export default function Home() {
           if (snap.exists()) {
             const data = snap.data();
             if (data.nickname) setNickname(data.nickname);
-            if (data.photoURL) setPhotoURL(data.photoURL);
+            if (data.photoURL) {
+              setPhotoURL(data.photoURL);
+            } else if (user.photoURL) {
+              setPhotoURL(user.photoURL);
+              // Save Google photoURL to Firestore for future logins
+              await setDoc(ref, { photoURL: user.photoURL }, { merge: true });
+            } else {
+              setPhotoURL(null);
+            }
           } else {
             setShowNicknameModal(true);
+            if (user.photoURL) {
+              setPhotoURL(user.photoURL);
+              // Save Google photoURL to Firestore for new users
+              await setDoc(ref, { photoURL: user.photoURL }, { merge: true });
+            } else {
+              setPhotoURL(null);
+            }
           }
         } catch (e) {
           // fallback to localStorage if Firestore fails
@@ -43,10 +58,10 @@ export default function Home() {
           } else {
             setShowNicknameModal(true);
           }
+          setPhotoURL(user.photoURL || null);
         }
       };
-      fetchNickname();
-      setPhotoURL(user.photoURL || null);
+      fetchProfile();
     }
   }, [user]);
 
@@ -154,7 +169,7 @@ export default function Home() {
         )) : <div className="text-gray-600">No polls yet.</div>}
         <FunWidget nextEvent={events[0]?.title + " on " + events[0]?.date} memory={randomMemory} />
       </div>
-      <footer className="mt-8 text-center text-black/60 text-xs">
+      <footer className="mt-8 text-center text-xs">
         &copy; {new Date().getFullYear()} AmoyVix. For our friends only.
       </footer>
     </div>

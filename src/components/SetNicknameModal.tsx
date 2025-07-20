@@ -10,10 +10,10 @@ interface SetNicknameModalProps {
 import { useEffect } from "react";
 
 export const SetNicknameModal: React.FC<SetNicknameModalProps> = ({ open, onSave, defaultValue }) => {
-  const [nickname, setNickname] = useState("");
+  const [nickname, setNickname] = useState(defaultValue || "");
   useEffect(() => {
-    if (open) setNickname("");
-  }, [open]);
+    setNickname(defaultValue || "");
+  }, [defaultValue, open]);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
