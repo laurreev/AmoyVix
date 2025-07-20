@@ -92,7 +92,7 @@ export default function InumanPage() {
   // Wheel animation effect (must be outside conditional)
   React.useEffect(() => {
     if (!spinning || !showWheel) return;
-    let totalSpins = 20 + Math.floor(Math.random() * 10); // randomize spin length
+    const totalSpins = 20 + Math.floor(Math.random() * 10); // randomize spin length
     let count = 0;
     const interval = setInterval(() => {
       setSpinIdx(i => (i + 1) % order.length);
