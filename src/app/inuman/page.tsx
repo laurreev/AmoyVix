@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { db } from "@/firebase";
-import { doc, setDoc, getDoc, onSnapshot, updateDoc, serverTimestamp, collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { doc, setDoc, onSnapshot, updateDoc, serverTimestamp, collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
 const SESSION_LIMIT = 2;
@@ -9,15 +9,16 @@ const SESSION_LIMIT = 2;
 export default function InumanPage() {
   const router = useRouter();
   const [players, setPlayers] = useState<string[]>([""]);
+  type FirestoreTimestamp = { toDate: () => Date };
   type InumanSession = {
     id: string;
     players: string[];
     order: string[];
     outPlayers: Record<string, { out: boolean; reason: string }>;
     ended: boolean;
-    endedAt?: any;
-    startedAt?: any;
-    lastActive?: any;
+    endedAt?: Date | FirestoreTimestamp | null;
+    startedAt?: Date | FirestoreTimestamp | null;
+    lastActive?: Date | FirestoreTimestamp | null;
     current: number;
     showWheel?: boolean;
     firstIdx?: number;
@@ -25,6 +26,17 @@ export default function InumanPage() {
     spinning?: boolean;
     started?: boolean;
   };
+
+  function getTimestampMillis(ts?: Date | FirestoreTimestamp | null): number {
+    if (!ts) return 0;
+    if (typeof ts === 'object' && typeof (ts as FirestoreTimestamp).toDate === 'function') {
+      return (ts as FirestoreTimestamp).toDate().getTime();
+    }
+    if (ts instanceof Date) {
+      return ts.getTime();
+    }
+    return 0;
+  }
   const [ongoingSessions, setOngoingSessions] = useState<InumanSession[]>([]);
   const [showOngoingDialog, setShowOngoingDialog] = useState(false);
   const [viewSessionIdx, setViewSessionIdx] = useState<number | null>(null);
@@ -42,7 +54,7 @@ export default function InumanPage() {
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [removeSelections, setRemoveSelections] = useState<Record<string, string>>({});
   const [ended, setEnded] = useState(false);
-  const isInitialMount = useRef(true);
+  // removed unused isInitialMount
 
   function handlePlayerChange(idx: number, value: string) {
     const updated = [...players];
@@ -81,7 +93,7 @@ export default function InumanPage() {
     const now = Date.now();
     let activeCount = 0;
     for (const s of sessions) {
-      const lastActive = (s as InumanSession).lastActive?.toDate ? (s as InumanSession).lastActive.toDate().getTime() : 0;
+      const lastActive = getTimestampMillis((s as InumanSession).lastActive);
       if (lastActive && now - lastActive > 120 * 60 * 1000) {
         // End inactive session
         await updateDoc(doc(db, "inumanSessions", s.id), { ended: true, endedAt: serverTimestamp() });
@@ -226,7 +238,7 @@ export default function InumanPage() {
       const now = Date.now();
       let found = false;
       for (const s of sessions) {
-        const lastActive = (s as InumanSession).lastActive?.toDate ? (s as InumanSession).lastActive.toDate().getTime() : 0;
+        const lastActive = getTimestampMillis((s as InumanSession).lastActive);
         if (lastActive && now - lastActive > 120 * 60 * 1000) {
           await updateDoc(doc(db, "inumanSessions", s.id), { ended: true, endedAt: serverTimestamp() });
         } else if (!found) {
